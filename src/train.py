@@ -437,3 +437,88 @@ plt.show()
 print(
     "\nResults saved in the results folder!"
 )
+# ============================================================
+# ACTUAL VS PREDICTED STRESS SCORE
+# ============================================================
+
+plt.figure(figsize=(10, 6))
+
+plt.scatter(
+    y_test,
+    y_pred,
+    alpha=0.6
+)
+
+# Perfect prediction reference line
+min_value = min(
+    y_test.min(),
+    y_pred.min()
+)
+
+max_value = max(
+    y_test.max(),
+    y_pred.max()
+)
+
+plt.plot(
+    [min_value, max_value],
+    [min_value, max_value],
+    linestyle="--",
+    label="Perfect Prediction"
+)
+
+plt.title("Actual vs Predicted Stress Score")
+
+plt.xlabel("Actual Stress Score")
+
+plt.ylabel("Predicted Stress Score")
+
+plt.legend()
+
+plt.grid(True)
+
+plt.savefig(
+    "results/actual_vs_predicted.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
+# ============================================================
+# ACTUAL VS PREDICTED STRESS OVER TEST SAMPLES
+# ============================================================
+
+plt.figure(figsize=(14, 6))
+
+# Show first 200 test samples
+n_samples = min(200, len(y_test))
+
+plt.plot(
+    y_test[:n_samples],
+    label="Actual Stress Score"
+)
+
+plt.plot(
+    y_pred[:n_samples],
+    label="Predicted Stress Score"
+)
+
+plt.title(
+    "Actual vs Predicted Stress Score Across Test Samples"
+)
+
+plt.xlabel("Test Sample")
+
+plt.ylabel("Stress Score")
+
+plt.legend()
+
+plt.grid(True)
+
+plt.savefig(
+    "results/stress_prediction_comparison.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
