@@ -394,6 +394,44 @@ with open(
     file.write(
         f"R2 Score: {r2:.4f}\n"
     )
+    # ============================================================
+# TRAINING VS VALIDATION LOSS GRAPH
+# ============================================================
+
+import os
+import matplotlib.pyplot as plt
+
+os.makedirs("results", exist_ok=True)
+
+plt.figure(figsize=(10, 6))
+
+plt.plot(
+    history.history["loss"],
+    label="Training Loss"
+)
+
+plt.plot(
+    history.history["val_loss"],
+    label="Validation Loss"
+)
+
+plt.title("Training vs Validation Loss")
+
+plt.xlabel("Epoch")
+
+plt.ylabel("Mean Squared Error")
+
+plt.legend()
+
+plt.grid(True)
+
+plt.savefig(
+    "results/training_validation_loss.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
 
 
 print(
