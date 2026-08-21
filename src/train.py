@@ -34,10 +34,17 @@ print("\nLoading and preprocessing data...")
 (
     X_train,
     y_train,
+    y_train_scaled,
+
     X_val,
     y_val,
+    y_val_scaled,
+
     X_test,
-    y_test
+    y_test,
+    y_test_scaled,
+
+    target_scaler
 
 ) = prepare_lstm_data(
 
