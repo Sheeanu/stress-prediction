@@ -26,7 +26,16 @@ LEARNING_RATE = 0.001
 
 
 # ============================================================
-# 2. LOAD PREPROCESSED DATA
+# 2. SET RANDOM SEEDS
+# ============================================================
+
+np.random.seed(RANDOM_STATE)
+
+tf.random.set_seed(RANDOM_STATE)
+
+
+# ============================================================
+# 3. LOAD AND PREPROCESS DATA
 # ============================================================
 
 print("\nLoading and preprocessing data...")
@@ -59,12 +68,26 @@ print("\nLoading and preprocessing data...")
 
 
 # ============================================================
-# 3. BUILD LSTM MODEL
+# 4. CREATE DIRECTORIES
+# ============================================================
+
+os.makedirs(
+    "models",
+    exist_ok=True
+)
+
+os.makedirs(
+    "results",
+    exist_ok=True
+)
+
+
+# ============================================================
+# 5. BUILD IMPROVED LSTM MODEL
 # ============================================================
 
 model = tf.keras.Sequential([
 
-    # Input layer
     tf.keras.layers.Input(
         shape=(
             X_train.shape[1],
@@ -78,22 +101,31 @@ model = tf.keras.Sequential([
         return_sequences=True
     ),
 
-    tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Dropout(
+        0.20
+    ),
 
     # Second LSTM layer
     tf.keras.layers.LSTM(
         32
     ),
 
-    tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Dropout(
+        0.20
+    ),
 
-    # Dense layer
+    # Dense layers
+    tf.keras.layers.Dense(
+        32,
+        activation="relu"
+    ),
+
     tf.keras.layers.Dense(
         16,
         activation="relu"
     ),
 
-    # Output: predicted stress score
+    # Output layer
     tf.keras.layers.Dense(
         1
     )
@@ -101,7 +133,7 @@ model = tf.keras.Sequential([
 
 
 # ============================================================
-# 4. COMPILE MODEL
+# 6. COMPILE MODEL
 # ============================================================
 
 model.compile(
@@ -124,17 +156,7 @@ model.summary()
 
 
 # ============================================================
-# 5. CREATE MODELS DIRECTORY
-# ============================================================
-
-os.makedirs(
-    "models",
-    exist_ok=True
-)
-
-
-# ============================================================
-# 6. CALLBACKS
+# 7. CALLBACKS
 # ============================================================
 
 early_stopping = tf.keras.callbacks.EarlyStopping(
@@ -176,19 +198,19 @@ reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
 
 
 # ============================================================
-# 7. TRAIN MODEL
+# 8. TRAIN MODEL
 # ============================================================
 
-print("\nStarting LSTM training...")
+print("\nStarting Improved LSTM training...")
 
 history = model.fit(
 
     X_train,
-    y_train,
+    y_train_scaled,
 
     validation_data=(
         X_val,
-        y_val
+        y_val_scaled
     ),
 
     epochs=EPOCHS,
@@ -206,7 +228,7 @@ history = model.fit(
 
 
 # ============================================================
-# 8. SAVE FINAL MODEL
+# 9. SAVE FINAL MODEL
 # ============================================================
 
 model.save(
@@ -219,70 +241,118 @@ print(
 
 
 # ============================================================
-# 9. MAKE PREDICTIONS
+# 10. MAKE PREDICTIONS
 # ============================================================
 
 print(
     "\nEvaluating model on unseen test persons..."
 )
 
-y_pred = model.predict(
+y_pred_scaled = model.predict(
     X_test
 ).flatten()
 
 
+# Convert predictions back to original stress score scale
+
+y_pred_lstm = target_scaler.inverse_transform(
+    y_pred_scaled.reshape(-1, 1)
+).flatten()
+
+
 # ============================================================
-# 10. CALCULATE PERFORMANCE METRICS
+# 11. CALCULATE PERFORMANCE METRICS
 # ============================================================
 
-mae = mean_absolute_error(
+lstm_mae = mean_absolute_error(
     y_test,
-    y_pred
+    y_pred_lstm
 )
 
-mse = mean_squared_error(
+lstm_mse = mean_squared_error(
     y_test,
-    y_pred
+    y_pred_lstm
 )
 
-rmse = np.sqrt(
-    mse
+lstm_rmse = np.sqrt(
+    lstm_mse
 )
 
-r2 = r2_score(
+lstm_r2 = r2_score(
     y_test,
-    y_pred
+    y_pred_lstm
 )
 
+
+# ============================================================
+# 12. PRINT FINAL RESULTS
+# ============================================================
 
 print("\n" + "=" * 50)
+
 print("FINAL MODEL PERFORMANCE")
-print("=" * 50)
-
-print(f"MAE  : {mae:.4f}")
-print(f"MSE  : {mse:.4f}")
-print(f"RMSE : {rmse:.4f}")
-print(f"R²   : {r2:.4f}")
 
 print("=" * 50)
 
-
-# ============================================================
-# 11. CREATE RESULTS DIRECTORY
-# ============================================================
-
-os.makedirs(
-    "results",
-    exist_ok=True
+print(
+    f"MAE  : {lstm_mae:.4f}"
 )
 
+print(
+    f"MSE  : {lstm_mse:.4f}"
+)
+
+print(
+    f"RMSE : {lstm_rmse:.4f}"
+)
+
+print(
+    f"R²   : {lstm_r2:.4f}"
+)
+
+print("=" * 50)
+
 
 # ============================================================
-# 12. PLOT TRAINING AND VALIDATION LOSS
+# 13. SAVE METRICS
+# ============================================================
+
+with open(
+    "results/metrics.txt",
+    "w"
+) as file:
+
+    file.write(
+        "Improved LSTM Stress Prediction Results\n"
+    )
+
+    file.write(
+        "=" * 45 + "\n\n"
+    )
+
+    file.write(
+        f"MAE: {lstm_mae:.4f}\n"
+    )
+
+    file.write(
+        f"MSE: {lstm_mse:.4f}\n"
+    )
+
+    file.write(
+        f"RMSE: {lstm_rmse:.4f}\n"
+    )
+
+    file.write(
+        f"R2 Score: {lstm_r2:.4f}\n"
+    )
+
+
+# ============================================================
+# 14. TRAINING VS VALIDATION LOSS GRAPH
 # ============================================================
 
 plt.figure(
-    figsize=(8, 5)
+    figsize=(10, 6)
 )
 
 plt.plot(
@@ -295,12 +365,16 @@ plt.plot(
     label="Validation Loss"
 )
 
-plt.xlabel("Epoch")
-
-plt.ylabel("MSE Loss")
-
 plt.title(
-    "Training vs Validation Loss"
+    "Improved LSTM: Training vs Validation Loss"
+)
+
+plt.xlabel(
+    "Epoch"
+)
+
+plt.ylabel(
+    "Scaled MSE Loss"
 )
 
 plt.legend()
@@ -313,21 +387,45 @@ plt.savefig(
     bbox_inches="tight"
 )
 
-plt.close()
+plt.show()
 
 
 # ============================================================
-# 13. PLOT ACTUAL VS PREDICTED STRESS
+# 15. ACTUAL VS PREDICTED STRESS SCORE
 # ============================================================
 
 plt.figure(
-    figsize=(8, 5)
+    figsize=(10, 6)
 )
 
 plt.scatter(
     y_test,
-    y_pred,
+    y_pred_lstm,
     alpha=0.6
+)
+
+
+# Perfect prediction reference line
+
+min_value = min(
+    y_test.min(),
+    y_pred_lstm.min()
+)
+
+max_value = max(
+    y_test.max(),
+    y_pred_lstm.max()
+)
+
+plt.plot(
+    [min_value, max_value],
+    [min_value, max_value],
+    linestyle="--",
+    label="Perfect Prediction"
+)
+
+plt.title(
+    "Improved LSTM: Actual vs Predicted Stress Score"
 )
 
 plt.xlabel(
@@ -338,148 +436,6 @@ plt.ylabel(
     "Predicted Stress Score"
 )
 
-plt.title(
-    "Actual vs Predicted Stress Score"
-)
-
-min_value = min(
-    y_test.min(),
-    y_pred.min()
-)
-
-max_value = max(
-    y_test.max(),
-    y_pred.max()
-)
-
-plt.plot(
-    [min_value, max_value],
-    [min_value, max_value],
-    linestyle="--"
-)
-
-plt.grid(True)
-
-plt.savefig(
-    "results/actual_vs_predicted.png",
-    dpi=300,
-    bbox_inches="tight"
-)
-
-plt.close()
-
-
-# ============================================================
-# 14. SAVE METRICS
-# ============================================================
-
-with open(
-        "results/metrics.txt",
-        "w"
-) as file:
-
-    file.write(
-        "LSTM Stress Prediction Results\n"
-    )
-
-    file.write(
-        "=" * 40 + "\n\n"
-    )
-
-    file.write(
-        f"MAE: {mae:.4f}\n"
-    )
-
-    file.write(
-        f"MSE: {mse:.4f}\n"
-    )
-
-    file.write(
-        f"RMSE: {rmse:.4f}\n"
-    )
-
-    file.write(
-        f"R2 Score: {r2:.4f}\n"
-    )
-    # ============================================================
-# TRAINING VS VALIDATION LOSS GRAPH
-# ============================================================
-
-import os
-import matplotlib.pyplot as plt
-
-os.makedirs("results", exist_ok=True)
-
-plt.figure(figsize=(10, 6))
-
-plt.plot(
-    history.history["loss"],
-    label="Training Loss"
-)
-
-plt.plot(
-    history.history["val_loss"],
-    label="Validation Loss"
-)
-
-plt.title("Training vs Validation Loss")
-
-plt.xlabel("Epoch")
-
-plt.ylabel("Mean Squared Error")
-
-plt.legend()
-
-plt.grid(True)
-
-plt.savefig(
-    "results/training_validation_loss.png",
-    dpi=300,
-    bbox_inches="tight"
-)
-
-plt.show()
-
-
-print(
-    "\nResults saved in the results folder!"
-)
-# ============================================================
-# ACTUAL VS PREDICTED STRESS SCORE
-# ============================================================
-
-plt.figure(figsize=(10, 6))
-
-plt.scatter(
-    y_test,
-    y_pred,
-    alpha=0.6
-)
-
-# Perfect prediction reference line
-min_value = min(
-    y_test.min(),
-    y_pred.min()
-)
-
-max_value = max(
-    y_test.max(),
-    y_pred.max()
-)
-
-plt.plot(
-    [min_value, max_value],
-    [min_value, max_value],
-    linestyle="--",
-    label="Perfect Prediction"
-)
-
-plt.title("Actual vs Predicted Stress Score")
-
-plt.xlabel("Actual Stress Score")
-
-plt.ylabel("Predicted Stress Score")
-
 plt.legend()
 
 plt.grid(True)
@@ -491,14 +447,24 @@ plt.savefig(
 )
 
 plt.show()
+
+
 # ============================================================
-# ACTUAL VS PREDICTED STRESS OVER TEST SAMPLES
+# 16. ACTUAL VS PREDICTED OVER TEST SAMPLES
 # ============================================================
 
-plt.figure(figsize=(14, 6))
+plt.figure(
+    figsize=(14, 6)
+)
 
-# Show first 200 test samples
-n_samples = min(200, len(y_test))
+
+# Display first 200 samples
+
+n_samples = min(
+    200,
+    len(y_test)
+)
+
 
 plt.plot(
     y_test[:n_samples],
@@ -506,7 +472,7 @@ plt.plot(
 )
 
 plt.plot(
-    y_pred[:n_samples],
+    y_pred_lstm[:n_samples],
     label="Predicted Stress Score"
 )
 
@@ -514,9 +480,13 @@ plt.title(
     "Actual vs Predicted Stress Score Across Test Samples"
 )
 
-plt.xlabel("Test Sample")
+plt.xlabel(
+    "Test Sample"
+)
 
-plt.ylabel("Stress Score")
+plt.ylabel(
+    "Stress Score"
+)
 
 plt.legend()
 
@@ -529,3 +499,75 @@ plt.savefig(
 )
 
 plt.show()
+
+
+# ============================================================
+# 17. SAVE PREDICTIONS
+# ============================================================
+
+import pandas as pd
+
+
+prediction_results = pd.DataFrame({
+
+    "Actual_Stress_Score":
+        y_test,
+
+    "Predicted_Stress_Score":
+        y_pred_lstm,
+
+    "Absolute_Error":
+        np.abs(
+            y_test -
+            y_pred_lstm
+        )
+})
+
+
+prediction_results.to_csv(
+
+    "results/predictions.csv",
+
+    index=False
+)
+
+
+# ============================================================
+# 18. FINAL MESSAGE
+# ============================================================
+
+print(
+    "\nResults saved successfully!"
+)
+
+print(
+    "\nGenerated files:"
+)
+
+print(
+    "- results/metrics.txt"
+)
+
+print(
+    "- results/training_validation_loss.png"
+)
+
+print(
+    "- results/actual_vs_predicted.png"
+)
+
+print(
+    "- results/stress_prediction_comparison.png"
+)
+
+print(
+    "- results/predictions.csv"
+)
+
+print(
+    "- models/best_stress_lstm.keras"
+)
+
+print(
+    "- models/final_stress_lstm.keras"
+)
