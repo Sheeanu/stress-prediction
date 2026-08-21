@@ -17,7 +17,7 @@ from preprocess import prepare_lstm_data
 # ============================================================
 
 SEQUENCE_LENGTH = 15
-N_PERSONS = 150
+N_PERSONS = 700
 RANDOM_STATE = 42
 
 EPOCHS = 100
