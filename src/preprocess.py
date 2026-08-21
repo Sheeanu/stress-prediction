@@ -1,25 +1,31 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler, LabelEncoder
 import joblib
 import os
 
-# 1. LOAD DATA AND RANDOMLY SELECT 150 PERSONS
+from sklearn.preprocessing import (
+    StandardScaler,
+    LabelEncoder
+)
 
+
+# ============================================================
+# LOAD AND SELECT PERSONS
+# ============================================================
 
 def load_data(
         file_path,
         n_persons=150,
         random_state=42):
 
-    # Load dataset
     df = pd.read_excel(file_path)
 
     print("Original dataset shape:", df.shape)
-    print("Total persons available:",
-          df["person_id"].nunique())
+    print(
+        "Total persons available:",
+        df["person_id"].nunique()
+    )
 
-    # Randomly select 150 persons
     rng = np.random.default_rng(random_state)
 
     all_persons = df["person_id"].unique()
@@ -30,24 +36,29 @@ def load_data(
         replace=False
     )
 
-    # Keep complete records of selected persons
     df = df[
         df["person_id"].isin(selected_persons)
     ].copy()
 
-    # Sort by person and time
     df = df.sort_values(
-        by=["person_id", "time_sec"]
+        ["person_id", "time_sec"]
     ).reset_index(drop=True)
 
-    print("\nSelected persons:", len(selected_persons))
-    print("Dataset shape after selection:", df.shape)
+    print(
+        "\nRandomly selected persons:",
+        len(selected_persons)
+    )
+
+    print(
+        "Selected dataset shape:",
+        df.shape
+    )
 
     return df, selected_persons
 
 
 # ============================================================
-# 2. ENCODE CATEGORICAL FEATURES
+# ENCODE CATEGORICAL FEATURES
 # ============================================================
 
 def encode_features(df):
@@ -75,7 +86,7 @@ def encode_features(df):
 
 
 # ============================================================
-# 3. SPLIT PERSONS INTO TRAIN / VALIDATION / TEST
+# PERSON-WISE SPLIT
 # ============================================================
 
 def split_persons(
@@ -84,26 +95,43 @@ def split_persons(
 
     rng = np.random.default_rng(random_state)
 
-    # Shuffle persons
     persons = np.array(persons)
+
     rng.shuffle(persons)
 
     total = len(persons)
 
-    # 70% training
     train_end = int(total * 0.70)
 
-    # 15% validation
-    val_end = train_end + int(total * 0.15)
+    val_end = (
+        train_end +
+        int(total * 0.15)
+    )
 
     train_persons = persons[:train_end]
-    val_persons = persons[train_end:val_end]
+
+    val_persons = persons[
+        train_end:val_end
+    ]
+
     test_persons = persons[val_end:]
 
     print("\nPERSON-WISE SPLIT")
-    print("Training persons:", len(train_persons))
-    print("Validation persons:", len(val_persons))
-    print("Testing persons:", len(test_persons))
+
+    print(
+        "Training persons:",
+        len(train_persons)
+    )
+
+    print(
+        "Validation persons:",
+        len(val_persons)
+    )
+
+    print(
+        "Testing persons:",
+        len(test_persons)
+    )
 
     return (
         train_persons,
@@ -113,7 +141,7 @@ def split_persons(
 
 
 # ============================================================
-# 4. CREATE SLIDING WINDOW SEQUENCES
+# CREATE SLIDING WINDOWS
 # ============================================================
 
 def create_sequences(
@@ -124,11 +152,11 @@ def create_sequences(
         sequence_length=15):
 
     X_sequences = []
+
     y_sequences = []
 
     for person_id in persons:
 
-        # Get one person's complete time-series data
         person_data = df[
             df["person_id"] == person_id
         ].sort_values(
@@ -143,18 +171,16 @@ def create_sequences(
             target_column
         ].values
 
-        # Create sliding windows
         for i in range(
-                len(person_data) - sequence_length):
+                len(person_data)
+                - sequence_length):
 
-            # Input: previous 15 time steps
             X_sequences.append(
                 features[
                     i:i + sequence_length
                 ]
             )
 
-            # Target: next stress score
             y_sequences.append(
                 targets[
                     i + sequence_length
@@ -162,38 +188,40 @@ def create_sequences(
             )
 
     return (
-        np.array(X_sequences),
-        np.array(y_sequences)
+        np.array(
+            X_sequences,
+            dtype=np.float32
+        ),
+
+        np.array(
+            y_sequences,
+            dtype=np.float32
+        )
     )
 
 
 # ============================================================
-# 5. SCALE DATA WITHOUT DATA LEAKAGE
+# SCALE INPUT FEATURES
 # ============================================================
 
-def scale_data(
+def scale_features(
         X_train,
         X_val,
         X_test):
 
-    # Get feature count
     n_features = X_train.shape[2]
 
-    # Create scaler
     scaler = StandardScaler()
 
-    # Reshape training data
     train_reshaped = X_train.reshape(
         -1,
         n_features
     )
 
-    # Fit ONLY on training data
     X_train_scaled = scaler.fit_transform(
         train_reshaped
     )
 
-    # Transform validation data
     val_reshaped = X_val.reshape(
         -1,
         n_features
@@ -203,7 +231,6 @@ def scale_data(
         val_reshaped
     )
 
-    # Transform test data
     test_reshaped = X_test.reshape(
         -1,
         n_features
@@ -212,8 +239,6 @@ def scale_data(
     X_test_scaled = scaler.transform(
         test_reshaped
     )
-
-    # Reshape back to LSTM format
 
     X_train_scaled = X_train_scaled.reshape(
         X_train.shape
@@ -236,7 +261,47 @@ def scale_data(
 
 
 # ============================================================
-# 6. COMPLETE PREPROCESSING PIPELINE
+# SCALE TARGET
+# ============================================================
+
+def scale_targets(
+        y_train,
+        y_val,
+        y_test):
+
+    target_scaler = StandardScaler()
+
+    y_train_scaled = (
+        target_scaler.fit_transform(
+            y_train.reshape(-1, 1)
+        )
+        .flatten()
+    )
+
+    y_val_scaled = (
+        target_scaler.transform(
+            y_val.reshape(-1, 1)
+        )
+        .flatten()
+    )
+
+    y_test_scaled = (
+        target_scaler.transform(
+            y_test.reshape(-1, 1)
+        )
+        .flatten()
+    )
+
+    return (
+        y_train_scaled,
+        y_val_scaled,
+        y_test_scaled,
+        target_scaler
+    )
+
+
+# ============================================================
+# COMPLETE PIPELINE
 # ============================================================
 
 def prepare_lstm_data(
@@ -245,19 +310,19 @@ def prepare_lstm_data(
         sequence_length=15,
         random_state=42):
 
-    # Load and select persons
     df, selected_persons = load_data(
         file_path,
         n_persons,
         random_state
     )
 
-    # Encode categorical data
-    df, condition_encoder, activity_encoder = (
-        encode_features(df)
-    )
+    (
+        df,
+        condition_encoder,
+        activity_encoder
 
-    # Features used for prediction
+    ) = encode_features(df)
+
     feature_columns = [
 
         "noise_dB",
@@ -273,10 +338,8 @@ def prepare_lstm_data(
         "activity_encoded"
     ]
 
-    # Target
     target_column = "stress_score"
 
-    # Split PERSONS before sequence creation
     (
         train_persons,
         val_persons,
@@ -286,8 +349,6 @@ def prepare_lstm_data(
         selected_persons,
         random_state
     )
-
-    # Create sequences
 
     X_train, y_train = create_sequences(
         df,
@@ -313,29 +374,43 @@ def prepare_lstm_data(
         sequence_length
     )
 
-    # Scale data
     (
         X_train,
         X_val,
         X_test,
-        scaler
+        feature_scaler
 
-    ) = scale_data(
+    ) = scale_features(
         X_train,
         X_val,
         X_test
     )
 
-    # Create models folder
+    (
+        y_train_scaled,
+        y_val_scaled,
+        y_test_scaled,
+        target_scaler
+
+    ) = scale_targets(
+        y_train,
+        y_val,
+        y_test
+    )
+
     os.makedirs(
         "models",
         exist_ok=True
     )
 
-    # Save preprocessing objects
     joblib.dump(
-        scaler,
+        feature_scaler,
         "models/feature_scaler.pkl"
+    )
+
+    joblib.dump(
+        target_scaler,
+        "models/target_scaler.pkl"
     )
 
     joblib.dump(
@@ -348,17 +423,11 @@ def prepare_lstm_data(
         "models/activity_encoder.pkl"
     )
 
-    # Print final shapes
-    print("\nFINAL LSTM DATA")
+    print("\nFINAL DATA SHAPES")
 
     print(
         "X_train:",
         X_train.shape
-    )
-
-    print(
-        "y_train:",
-        y_train.shape
     )
 
     print(
@@ -367,55 +436,22 @@ def prepare_lstm_data(
     )
 
     print(
-        "y_val:",
-        y_val.shape
-    )
-
-    print(
         "X_test:",
         X_test.shape
-    )
-
-    print(
-        "y_test:",
-        y_test.shape
     )
 
     return (
         X_train,
         y_train,
+        y_train_scaled,
+
         X_val,
         y_val,
+        y_val_scaled,
+
         X_test,
-        y_test
-    )
+        y_test,
+        y_test_scaled,
 
-
-# ============================================================
-# RUN PREPROCESSING
-# ============================================================
-
-if __name__ == "__main__":
-
-    (
-        X_train,
-        y_train,
-        X_val,
-        y_val,
-        X_test,
-        y_test
-
-    ) = prepare_lstm_data(
-
-        file_path="data/stress_dataset.xlsx",
-
-        n_persons=150,
-
-        sequence_length=15,
-
-        random_state=42
-    )
-
-    print(
-        "\nPreprocessing completed successfully!"
+        target_scaler
     )
