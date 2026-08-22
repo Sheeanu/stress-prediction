@@ -11,9 +11,9 @@ from sklearn.metrics import (
     precision_recall_fscore_support
 )
 
+from sklearn.utils.class_weight import compute_class_weight
+
 from preprocess_classification import prepare_classification_data
-
-
 # ============================================================
 # 1. SETTINGS
 # ============================================================
@@ -61,7 +61,6 @@ print("\nLoading and preprocessing classification data...")
     sequence_length=SEQUENCE_LENGTH
 )
 
-
 # ============================================================
 # 4. PRINT INPUT INFORMATION
 # ============================================================
@@ -75,6 +74,28 @@ print("Sequence Length:", X_train.shape[1])
 print("Number of Features:", X_train.shape[2])
 
 print("Number of Classes:", len(np.unique(y_train)))
+
+# ============================================================
+# 4A. CALCULATE CLASS WEIGHTS
+# ============================================================
+
+classes = np.unique(y_train)
+
+class_weights_array = compute_class_weight(
+    class_weight="balanced",
+    classes=classes,
+    y=y_train
+)
+
+class_weights = dict(
+    zip(
+        classes,
+        class_weights_array
+    )
+)
+
+print("\nCLASS WEIGHTS:")
+print(class_weights)
 
 
 # ============================================================
@@ -227,6 +248,8 @@ history = model.fit(
     epochs=EPOCHS,
 
     batch_size=BATCH_SIZE,
+
+    class_weight=class_weights,
 
     callbacks=[
         early_stopping,
