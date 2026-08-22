@@ -33,21 +33,22 @@ def prepare_classification_data(
     )
 
 
-    # ========================================================
-    # FEATURE COLUMNS
-    # ========================================================
+   # ========================================================
+# FEATURE COLUMNS
+# ========================================================
 
-    feature_columns = [
+feature_columns = [
 
-        "noise_dB_z",
-        "light_lux_z",
-        "humidity_pct_z",
-        "temp_C_z",
+    "noise_dB_z",
+    "light_lux_z",
+    "humidity_pct_z",
+    "temp_C_z",
 
-        "HR_bpm_z",
-        "HRV_ms_z",
-        "GSR_uS_z",
-    ]
+    "HR_bpm_z",
+    "HRV_ms_z",
+    "GSR_uS_z"
+]
+
 
 # ========================================================
 # ONE-HOT ENCODE ACTIVITY
@@ -64,7 +65,6 @@ df = pd.concat(
     axis=1
 )
 
-# Add the encoded activity columns as features
 activity_columns = activity_dummies.columns.tolist()
 
 feature_columns = (
@@ -73,19 +73,18 @@ feature_columns = (
 )
 
 
-    # ========================================================
-    # CREATE EMPTY DATA LISTS
-    # ========================================================
+# ========================================================
+# CREATE EMPTY DATA LISTS
+# ========================================================
 
-    X_train = []
-    y_train = []
+X_train = []
+y_train = []
 
-    X_val = []
-    y_val = []
+X_val = []
+y_val = []
 
-    X_test = []
-    y_test = []
-
+X_test = []
+y_test = []
 
     # ========================================================
     # PROCESS EACH PERSON
