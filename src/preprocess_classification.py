@@ -54,31 +54,27 @@ def prepare_classification_data(
     ]
 
 
-    # ========================================================
-    # ONE-HOT ENCODE ACTIVITY
-    # ========================================================
+  # ========================================================
+# ONE-HOT ENCODE ACTIVITY
+# ========================================================
 
-    activity_dummies = pd.get_dummies(
-        df["activity_code"],
-        prefix="activity",
-        dtype=np.float32
-    )
+activity_dummies = pd.get_dummies(
+    df["activity_code"],
+    prefix="activity",
+    dtype=np.float32
+)
 
-    df = pd.concat(
-        [df, activity_dummies],
-        axis=1
-    )
+df = pd.concat(
+    [df, activity_dummies],
+    axis=1
+)
 
+activity_columns = activity_dummies.columns.tolist()
 
-    # Get names of newly created activity columns
-    activity_columns = activity_dummies.columns.tolist()
-
-
-    # Add activity features to the main feature list
-    feature_columns = (
-        feature_columns +
-        activity_columns
-    )
+feature_columns = (
+    feature_columns +
+    activity_columns
+)
 
 
     # ========================================================
