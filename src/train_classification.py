@@ -18,7 +18,7 @@ from preprocess_classification import prepare_classification_data
 # 1. SETTINGS
 # ============================================================
 
-SEQUENCE_LENGTH = 15
+SEQUENCE_LENGTH = 60
 
 EPOCHS = 100
 
