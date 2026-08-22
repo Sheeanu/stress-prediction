@@ -39,21 +39,21 @@ def prepare_classification_data(
 
     feature_columns = [
 
-        "noise_z",
-        "light_z",
-        "humidity_z",
-        "temperature_z",
+        "noise_dB_z",
+        "light_lux_z",
+        "humidity_pct_z",
+        "temp_C_z",
 
-        "heart_rate_z",
-        "hrv_z",
-        "gsr_z",
+        "HR_bpm_z",
+        "HRV_ms_z",
+        "GSR_uS_z",
 
         "activity_code"
     ]
 
 
     # ========================================================
-    # CREATE 60-SECOND SEQUENCES
+    # CREATE EMPTY DATA LISTS
     # ========================================================
 
     X_train = []
@@ -72,23 +72,35 @@ def prepare_classification_data(
 
     for person_id, person_data in df.groupby("person_id"):
 
+        # Sort data according to time
         person_data = person_data.sort_values("time_sec")
 
+        # Get sensor features
         features = person_data[
             feature_columns
         ].values
 
+        # Get stress labels
         targets = person_data[
             "target"
         ].values
 
 
-        # Skip incomplete sequences
+        # Get person's dataset split
+        split = person_data[
+            "split"
+        ].iloc[0]
+
+
+        # Skip if insufficient data
         if len(person_data) < sequence_length:
             continue
 
 
-        # Create sliding windows
+        # ====================================================
+        # CREATE SLIDING LSTM WINDOWS
+        # ====================================================
+
         for i in range(
                 len(person_data) - sequence_length + 1
         ):
@@ -97,35 +109,27 @@ def prepare_classification_data(
                 i:i + sequence_length
             ]
 
+            # Label of the final time step
             y_label = targets[
                 i + sequence_length - 1
             ]
 
 
-            # Get split from person's first row
-            split = person_data[
-                "split"
-            ].iloc[0]
-
-
             if split == "train":
 
                 X_train.append(X_sequence)
-
                 y_train.append(y_label)
 
 
             elif split == "validation":
 
                 X_val.append(X_sequence)
-
                 y_val.append(y_label)
 
 
             elif split == "test":
 
                 X_test.append(X_sequence)
-
                 y_test.append(y_label)
 
 
@@ -167,31 +171,40 @@ def prepare_classification_data(
 
 
     # ========================================================
-    # PRINT FINAL SHAPES
+    # PRINT FINAL INFORMATION
     # ========================================================
 
-    print("\nFINAL DATA SHAPES")
+    print("\n" + "=" * 50)
+    print("FINAL DATA SHAPES")
+    print("=" * 50)
 
     print("X_train:", X_train.shape)
+    print("y_train:", y_train.shape)
+
     print("X_val:", X_val.shape)
+    print("y_val:", y_val.shape)
+
     print("X_test:", X_test.shape)
+    print("y_test:", y_test.shape)
 
 
-    print("\nCLASS DISTRIBUTION")
+    print("\n" + "=" * 50)
+    print("CLASS DISTRIBUTION")
+    print("=" * 50)
 
     print(
-        "Train:",
-        np.bincount(y_train)
+        "\nTrain:",
+        np.bincount(y_train, minlength=4)
     )
 
     print(
         "Validation:",
-        np.bincount(y_val)
+        np.bincount(y_val, minlength=4)
     )
 
     print(
         "Test:",
-        np.bincount(y_test)
+        np.bincount(y_test, minlength=4)
     )
 
 
