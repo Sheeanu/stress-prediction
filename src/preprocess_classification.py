@@ -3,30 +3,30 @@ import pandas as pd
 
 
 # ============================================================
-# LOAD DATASET AND PREPARE LSTM SEQUENCES
+# LOAD DATASET AND PREPARE LSTM CLASSIFICATION SEQUENCES
 # ============================================================
 
 def prepare_classification_data(
         file_path="data/LSTM_ready_stable_dataset.xlsx",
-        sequence_length=60
+        sequence_length=15
 ):
 
     # ========================================================
-    # LOAD DATASET
+    # 1. LOAD DATASET
     # ========================================================
 
     print("\nLoading classification dataset...")
 
     df = pd.read_excel(file_path)
 
-    print("Dataset shape:", df.shape)
+    print("Original dataset shape:", df.shape)
 
     print("\nColumns:")
     print(df.columns.tolist())
 
 
     # ========================================================
-    # REMOVE RARE CRITICAL CLASS
+    # 2. REMOVE RARE CRITICAL CLASS
     # ========================================================
 
     df = df[df["target"] != 4].copy()
@@ -38,7 +38,7 @@ def prepare_classification_data(
 
 
     # ========================================================
-    # BASE FEATURE COLUMNS
+    # 3. BASE SENSOR AND ENVIRONMENT FEATURES
     # ========================================================
 
     feature_columns = [
@@ -54,47 +54,50 @@ def prepare_classification_data(
     ]
 
 
-  # ========================================================
-# ONE-HOT ENCODE ACTIVITY
-# ========================================================
+    # ========================================================
+    # 4. ONE-HOT ENCODE ACTIVITY
+    # ========================================================
 
-activity_dummies = pd.get_dummies(
-    df["activity_code"],
-    prefix="activity",
-    dtype=np.float32
-)
+    activity_dummies = pd.get_dummies(
+        df["activity_code"],
+        prefix="activity",
+        dtype=np.float32
+    )
 
-df = pd.concat(
-    [df, activity_dummies],
-    axis=1
-)
+    df = pd.concat(
+        [df, activity_dummies],
+        axis=1
+    )
 
-activity_columns = activity_dummies.columns.tolist()
+    # Get names of the one-hot encoded activity columns
+    activity_columns = activity_dummies.columns.tolist()
 
-feature_columns = (
-    feature_columns +
-    activity_columns
-)
+    # Add activity columns to the input features
+    feature_columns = (
+        feature_columns +
+        activity_columns
+    )
 
 
     # ========================================================
-    # PRINT FINAL FEATURE COLUMNS
+    # 5. PRINT FEATURES USED
     # ========================================================
 
     print("\nFeatures used:")
 
     for feature in feature_columns:
+
         print("-", feature)
 
 
     print(
-        "\nTotal number of features:",
+        "\nTotal number of input features:",
         len(feature_columns)
     )
 
 
     # ========================================================
-    # CREATE EMPTY DATA LISTS
+    # 6. CREATE EMPTY DATA CONTAINERS
     # ========================================================
 
     X_train = []
@@ -108,64 +111,65 @@ feature_columns = (
 
 
     # ========================================================
-    # PROCESS EACH PERSON
+    # 7. PROCESS EACH PERSON SEPARATELY
     # ========================================================
 
     for person_id, person_data in df.groupby("person_id"):
 
-        # Sort each person's data according to time
+        # Sort data chronologically
         person_data = person_data.sort_values(
             "time_sec"
         )
 
 
-        # Get feature values
+        # Extract features
         features = person_data[
             feature_columns
         ].values.astype(np.float32)
 
 
-        # Get target values
+        # Extract stress targets
         targets = person_data[
             "target"
         ].values.astype(np.int32)
 
 
-        # Get the person's split
+        # Get person's split
         split = person_data[
             "split"
         ].iloc[0]
 
 
-        # Skip persons with insufficient data
+        # Skip person if there are not enough
+        # time steps to form a sequence
         if len(person_data) < sequence_length:
 
             continue
 
 
         # ====================================================
-        # CREATE LSTM SEQUENCES
+        # 8. CREATE SLIDING LSTM WINDOWS
         # ====================================================
 
         for i in range(
-                len(person_data) - sequence_length + 1
+            len(person_data) - sequence_length + 1
         ):
 
-            # Sequence of sensor data
+            # Input sequence
             X_sequence = features[
                 i:i + sequence_length
             ]
 
 
-            # Use the target at the final time step
+            # Target = stress class at the final time step
             y_label = targets[
                 i + sequence_length - 1
             ]
 
 
-            # =================================================
-            # ADD TO CORRECT DATASET SPLIT
-            # =================================================
+            # ================================================
+            # ADD TO CORRECT SPLIT
+            # ================================================
 
             if split == "train":
 
@@ -201,7 +205,7 @@ feature_columns = (
 
 
     # ========================================================
-    # CONVERT LISTS TO NUMPY ARRAYS
+    # 9. CONVERT LISTS TO NUMPY ARRAYS
     # ========================================================
 
     X_train = np.array(
@@ -238,7 +242,7 @@ feature_columns = (
 
 
     # ========================================================
-    # PRINT FINAL DATA INFORMATION
+    # 10. PRINT FINAL DATA SHAPES
     # ========================================================
 
     print("\n" + "=" * 55)
@@ -248,24 +252,21 @@ feature_columns = (
     print("=" * 55)
 
     print("X_train:", X_train.shape)
-
     print("y_train:", y_train.shape)
 
     print()
 
     print("X_val:", X_val.shape)
-
     print("y_val:", y_val.shape)
 
     print()
 
     print("X_test:", X_test.shape)
-
     print("y_test:", y_test.shape)
 
 
     # ========================================================
-    # PRINT CLASS DISTRIBUTION
+    # 11. PRINT CLASS DISTRIBUTION
     # ========================================================
 
     print("\n" + "=" * 55)
@@ -273,7 +274,6 @@ feature_columns = (
     print("CLASS DISTRIBUTION")
 
     print("=" * 55)
-
 
     print(
         "\nTrain:",
@@ -283,7 +283,6 @@ feature_columns = (
         )
     )
 
-
     print(
         "Validation:",
         np.bincount(
@@ -291,7 +290,6 @@ feature_columns = (
             minlength=4
         )
     )
-
 
     print(
         "Test:",
@@ -303,11 +301,10 @@ feature_columns = (
 
 
     # ========================================================
-    # RETURN DATA
+    # 12. RETURN PREPARED DATA
     # ========================================================
 
     return (
-
         X_train,
         y_train,
 
