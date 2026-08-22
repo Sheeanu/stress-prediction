@@ -47,9 +47,30 @@ def prepare_classification_data(
         "HR_bpm_z",
         "HRV_ms_z",
         "GSR_uS_z",
-
-        "activity_code"
     ]
+
+# ========================================================
+# ONE-HOT ENCODE ACTIVITY
+# ========================================================
+
+activity_dummies = pd.get_dummies(
+    df["activity_code"],
+    prefix="activity",
+    dtype=np.float32
+)
+
+df = pd.concat(
+    [df, activity_dummies],
+    axis=1
+)
+
+# Add the encoded activity columns as features
+activity_columns = activity_dummies.columns.tolist()
+
+feature_columns = (
+    feature_columns +
+    activity_columns
+)
 
 
     # ========================================================
